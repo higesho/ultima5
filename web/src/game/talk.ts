@@ -13,7 +13,7 @@
 
 import { drawVitals, updateFrame } from './frame.ts';
 import { Game } from './game.ts';
-import { heardOfThings, noteConversation, noteSleeper } from './journal.ts';
+import { heardOfThings, noteConversation, noteSaid, noteSleeper } from './journal.ts';
 import { getChar, getCharYN, getString, selectDirection } from './input.ts';
 import { saysWord } from './cmds.ts';
 import { actorTileAt } from './actors.ts';
@@ -86,6 +86,11 @@ export class TalkState {
   keysBefore: number | null = null;
   /** Where in the script each line spoken this conversation began: its clues heard, for the journal (placeClues.ts). */
   spokeAt = new Set<number>();
+  /**
+   * The lines spoken this conversation in Japanese (the fork's), each with its English: the journal reads the English
+   * for its clues and places, as the port does, and keeps the Japanese.
+   */
+  said: { en: string; ja: string }[] = [];
 }
 
 /**
@@ -317,7 +322,7 @@ async function speak(k: Talk): Promise<boolean> {
   // reads its clues by it, and the words it says are learnt from it, as the player hears them said.
   const at = sourceAt(t, t.at);
   t.spokeAt.add(at);
-  if (t.script !== t.source) learnSaid(k, at);
+  if (t.script !== t.source) t.said.push({ en: learnSaid(k, at), ja: lineFrom(t.script, t.at) });
   while (t.script[t.at] !== 0) {
     if ((await processChar(k, t.script[t.at++])) !== 0) return true;
   }
@@ -343,8 +348,21 @@ function sourceAt(t: TalkState, at: number): number {
   return i;
 }
 
+/** A Japanese script's string from `at` as it reads: its letters, its line breaks, the actions left out. */
+function lineFrom(script: ArrayLike<number>, at: number): string {
+  let text = '';
+  for (let i = at; i < script.length && script[i] !== 0; i++) {
+    const b = script[i];
+    if (b === 0xfe || b === 0x85 || b === 0x86 || b === 0x8c) i++;
+    else if (isWide(b)) text += String.fromCharCode(b);
+    else if (b === 0x8d) text += '\n';
+    else if (b >= 0xa0) text += String.fromCharCode(b & 0x7f);
+  }
+  return text.trim();
+}
+
 /** The words of the English string from `at` learnt (words.ts learn): what a Japanese line says, as English has it. */
-function learnSaid(k: Talk, at: number): void {
+function learnSaid(k: Talk, at: number): string {
   const t = k.t;
   const words = k.g.data.table(0x24ea, 0x80);
   let text = '';
@@ -356,6 +374,7 @@ function learnSaid(k: Talk, at: number): void {
     else text += ' ';
   }
   k.g.words.learn(k.g, text);
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 /** TALK_07be: the second of two alternatives. */
@@ -1300,6 +1319,7 @@ async function conversation(g: Game, n: number): Promise<void> {
   loadScript(g, n);
   g.talk.tried.clear();
   g.talk.spokeAt.clear();
+  g.talk.said = [];
   g.recording = '';
   g.recordWindow = g.text.current; // what the borders print while they talk is nobody's words
   let ended = false;
@@ -1316,10 +1336,14 @@ async function conversation(g: Game, n: number): Promise<void> {
     g.recording = null;
     g.recordWindow = null;
     g.words.learn(g, heard ?? '');
-    heardPlaces(g, heard ?? ''); // the places named, for the map (the port's)
-    heardOfThings(g, heard ?? '', scriptName(g.talk.source)); // the journal's mysteries
+    // In Japanese (the fork's), what was said read in its English for the places, the mysteries and the clues.
+    const said = g.talk.said;
+    const english = said.length ? said.map((l) => l.en).join('\n') : (heard ?? '');
+    heardPlaces(g, english); // the places named, for the map (the port's)
+    heardOfThings(g, english, scriptName(g.talk.source)); // the journal's mysteries
     heardLines(g, g.talk.labels, g.talk.spokeAt); // the place's clues heard (the journal's Places)
-    noteConversation(g, heard, scriptName(g.talk.source));
+    if (said.length) noteSaid(g, said, lineFrom(g.talk.script, 0));
+    else noteConversation(g, heard, scriptName(g.talk.source));
   }
   await pickpocket(g);
 }

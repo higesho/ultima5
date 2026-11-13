@@ -67,6 +67,22 @@ export function noteConversation(g: Game, transcript: string, name = ''): void {
 }
 
 /**
+ * noteConversation for a conversation held in Japanese (the fork's): each line spoken with its English, a line kept
+ * - in Japanese - where its English is a clue, under the townsman's name as the translation gives it.
+ */
+export function noteSaid(g: Game, said: { en: string; ja: string }[], name: string): void {
+  const where = placeName(g);
+  let noted = false;
+  for (const { en, ja } of said) {
+    if (!ja || !isClue(g, en) || g.notes.some((n) => n.text === ja)) continue;
+    g.notes.push({ who: name || where, where, text: ja.replace(/\s+/g, ' '), date: today(g) });
+    noted = true;
+  }
+  if (noted) modern.journalUpdated(g);
+  if (g.notes.length > MAX_NOTES) g.notes.splice(0, g.notes.length - MAX_NOTES);
+}
+
+/**
  * Someone found asleep: when they are up, worked out from their own day
  * in the player's files, so a visit can be timed. Most of Britannia keeps
  * ordinary hours, but a few are about only by night, or for an hour or
