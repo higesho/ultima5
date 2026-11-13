@@ -26,7 +26,8 @@ const fs = require('node:fs');
 const { readFileSync, writeFileSync } = fs;
 const flatpakUpdates = require('./flatpakUpdates.cjs');
 
-const OWNER = 'synthwave-pixel';
+// The Japanese edition's releases (the fork's): it updates from its own, never to the English app's.
+const OWNER = 'higesho';
 const REPO = 'ultima5';
 const RELEASES = `https://github.com/${OWNER}/${REPO}/releases/latest`;
 const LATEST_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`;

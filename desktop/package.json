@@ -1,8 +1,8 @@
 {
   "name": "ultima5-desktop",
-  "productName": "Ultima V",
+  "productName": "Ultima V JA",
   "version": "1.1.0",
-  "description": "Ultima V: Warriors of Destiny, a new engine for the DOS game's files, as a desktop app",
+  "description": "Ultima V: Warriors of Destiny, a new engine for the DOS game's files, as a desktop app - the Japanese edition",
   "author": "synthwave-pixel",
   "license": "MIT",
   "private": true,
@@ -22,9 +22,9 @@
     "electron-builder": "^26.17.0"
   },
   "build": {
-    "appId": "com.synthwavepixel.ultima5",
-    "productName": "Ultima V",
-    "artifactName": "Ultima-V-${version}-${os}-${arch}.${ext}",
+    "appId": "io.github.higesho.ultima5ja",
+    "productName": "Ultima V JA",
+    "artifactName": "Ultima-V-JA-${version}-${os}-${arch}.${ext}",
     "directories": {
       "buildResources": "build",
       "output": "dist"
@@ -53,7 +53,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "synthwave-pixel",
+        "owner": "higesho",
         "repo": "ultima5",
         "releaseType": "release"
       }
@@ -111,10 +111,10 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Ultima-V-${version}-${os}-${arch}-setup.${ext}"
+      "artifactName": "Ultima-V-JA-${version}-${os}-${arch}-setup.${ext}"
     },
     "portable": {
-      "artifactName": "Ultima-V-${version}-${os}-${arch}-portable.${ext}"
+      "artifactName": "Ultima-V-JA-${version}-${os}-${arch}-portable.${ext}"
     },
     "linux": {
       "category": "Game",

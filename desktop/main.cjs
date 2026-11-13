@@ -432,7 +432,7 @@ function createWindow() {
     // macOS altogether (the green button, Window > Enter Full Screen, F11), so it is left unsaid otherwise.
     fullscreenable: true,
     ...(startsFullScreen(process.argv, process.env, saved) ? { fullscreen: true } : {}),
-    title: `Ultima V SP ${app.getVersion()}`,
+    title: `Ultima V SP 日本語版 ${app.getVersion()}`,
     icon: join(__dirname, 'build', 'icons', '256x256.png'), // the window's (packaged: package.json build.files)
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: join(__dirname, 'preload.cjs') },
   });
