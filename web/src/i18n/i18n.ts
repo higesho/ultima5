@@ -26,7 +26,8 @@ function stored(): Lang {
   } catch {
     // no storage: the default
   }
-  return 'ja';
+  // Japanese in a page (this is the Japanese edition); English elsewhere - the tests, and the tools - as the port is.
+  return typeof window === 'undefined' ? 'en' : 'ja';
 }
 
 let current: Lang = stored();

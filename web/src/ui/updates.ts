@@ -63,8 +63,8 @@ export interface UpdateHook {
   notes?: (version: string) => Promise<string | null>;
 }
 
-export const RELEASES = 'https://github.com/synthwave-pixel/ultima5/releases/latest';
-const LATEST_API = 'https://api.github.com/repos/synthwave-pixel/ultima5/releases/latest';
+export const RELEASES = 'https://github.com/higesho/ultima5/releases/latest';
+const LATEST_API = 'https://api.github.com/repos/higesho/ultima5/releases/latest';
 
 /** A version's numbers (1.1.12, v1.1.12): major, minor, patch; a pre-release (1.1.0-dev.x) ranks below its release. */
 function parts(version: string): number[] {

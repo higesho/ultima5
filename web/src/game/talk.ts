@@ -187,7 +187,7 @@ export function loadScript(g: Game, npcTalk: number): void {
   // In Japanese (the fork's), the townsman says their script's translation: the same strings, keywords, questions
   // and actions, its letters Japanese (gameText.ts tlkScript; the corrections above already made in it). Their own
   // words, for the Say list, are the English script's still: the words the player can say.
-  t.source = t.script as Uint8Array;
+  t.source = t.script;
   const translated = tlkScript(fileName, (at - 2) >> 2);
   if (translated) t.script = translated;
 }
