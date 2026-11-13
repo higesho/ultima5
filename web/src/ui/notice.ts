@@ -7,6 +7,7 @@
  * it reaches the game behind.
  */
 
+import { keepTranslated } from '../i18n/dom.ts';
 import { menuUp } from './pageMenu.ts';
 import { connectedPads, pressed as isDown } from './pads.ts';
 
@@ -46,6 +47,7 @@ export function showNotice(title: string, text: string, button = 'OK'): Promise<
   const ok = root.querySelector('button') as HTMLButtonElement;
   ok.textContent = button;
   document.body.appendChild(root);
+  keepTranslated(root); // in the language shown (the fork's: i18n/dom.ts)
   ok.focus();
 
   return new Promise((resolve) => {

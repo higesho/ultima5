@@ -120,7 +120,8 @@ export interface Item {
 }
 
 /** A menu's line in the language shown: its label and note (the fork's). */
-const trItem = (item: Item): Item => (item.note === undefined ? { ...item, label: tr(item.label) } : { ...item, label: tr(item.label), note: tr(item.note) });
+const trItem = (item: Item): Item =>
+  item.note === undefined ? { ...item, label: tr(item.label) } : { ...item, label: tr(item.label), note: tr(item.note) };
 
 /** The map's square, left and right, in EGA pixels: inside the screen's frame. */
 const VIEW_EDGE: [number, number] = [8, 0xb7];
@@ -1478,7 +1479,7 @@ export async function commandMenu(g: Game): Promise<number> {
   ]);
   for (const it of items) {
     const n = it.key === undefined ? 0 : (held.get(it.key) ?? 0);
-    if (n > 0) it.label += ` (x${n})`;
+    if (n > 0) it.label = `${tr(it.label)} (x${n})`;
   }
   // Each line fitted to the list's width, low in the view (playRows): its count, its brackets, its words shortened.
   const width = playWidth(g, true);

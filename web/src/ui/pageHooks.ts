@@ -7,6 +7,7 @@
  * shown. And the controllers: a gamepad, and the touch pad on a touch.
  */
 
+import { keepTranslated } from '../i18n/dom.ts';
 import { INPUT_PACES } from './holds.ts';
 import type { Game } from '../game/game.ts';
 import { LOST_FOCUS, Pad } from '../game/io.ts';
@@ -105,6 +106,7 @@ function textBox(title: string, value: string, max: number): Promise<string | nu
     });
     back.appendChild(box);
     document.body.appendChild(back);
+    keepTranslated(back); // in the language shown (the fork's: i18n/dom.ts)
     input.focus();
     input.select();
   });
@@ -151,6 +153,7 @@ function dialog(message: string, paste: boolean, buttons: string[]): Promise<{ b
     back.appendChild(box);
     back.addEventListener('keydown', (e) => e.stopPropagation());
     document.body.appendChild(back);
+    keepTranslated(back); // in the language shown (the fork's: i18n/dom.ts)
     (area ?? row.querySelector('button'))?.focus();
   });
 }

@@ -3,3 +3,5 @@ node_modules
 public
 # Written by the effects render (tools/sfx/render.ts) as it lays the sounds out.
 src/audio/sfxManifest.json
+# The Japanese edition's translations, written by its tools (jp_work/tools).
+src/i18n/ja

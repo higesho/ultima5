@@ -11,6 +11,8 @@
  * (pageMenu.ts): a Steam Deck in Game Mode or an Android handheld has no mouse to get past it with.
  */
 
+import { tr } from '../i18n/i18n.ts';
+import { keepTranslated } from '../i18n/dom.ts';
 import { GameFiles } from '../data/files.ts';
 import { complete, identify, listed, type Candidate, type Identified } from './gameFiles.ts';
 import { scanOutcome } from './scan.ts';
@@ -99,7 +101,8 @@ export function runInstaller(notice?: string): Promise<GameFiles> {
   const root = document.createElement('div');
   root.id = 'installer';
   root.className = 'u5-install';
-  root.innerHTML = `
+  // In the language shown (the fork's): the page whole, then its text as it changes (i18n/dom.ts).
+  root.innerHTML = tr(`
     <div class="box" role="dialog" aria-labelledby="u5-title">
       <h1 id="u5-title">ULTIMA V: WARRIORS OF DESTINY</h1>
       <p>This is a new engine for Ultima V. It plays your own copy of the MS-DOS game, which it does not include.</p>
@@ -115,8 +118,9 @@ export function runInstaller(notice?: string): Promise<GameFiles> {
         <button type="button" data-warn="install">Install anyway</button>
         <button type="button" data-warn="again">Choose again</button>
       </div>
-    </div>`;
+    </div>`);
   document.body.appendChild(root);
+  keepTranslated(root);
   const drop = root.querySelector('.drop') as HTMLElement;
   const status = root.querySelector('.status') as HTMLElement;
   const warn = root.querySelector('.warn') as HTMLElement;

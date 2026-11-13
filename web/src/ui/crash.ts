@@ -10,6 +10,7 @@
  * browser's own ResizeObserver warning, a fetch called off - opens nothing.
  */
 
+import { keepTranslated } from '../i18n/dom.ts';
 import { version } from '../../package.json';
 import { driveMenu, usable } from './pageMenu.ts';
 
@@ -222,6 +223,7 @@ function showCrash(): void {
   details = area;
   area.value = detailsNow();
   document.body.appendChild(root);
+  keepTranslated(root); // in the language shown (the fork's: i18n/dom.ts)
 
   copy.addEventListener('click', () => {
     const text = detailsNow();

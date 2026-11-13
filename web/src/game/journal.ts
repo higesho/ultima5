@@ -9,6 +9,7 @@
  * the place and the day.
  */
 
+import { tr } from '../i18n/i18n.ts';
 import * as modern from './modernKarma.ts';
 import { Game, type Note } from './game.ts';
 import { Save } from './save.ts';
@@ -112,6 +113,9 @@ export interface JournalLine {
 /** The menu's width, in letters: a count or a state is set against its right edge. */
 const WIDTH = 21;
 const row = (name: string, right: string): string => {
+  // In the language shown (the fork's), before it is measured.
+  name = tr(name);
+  right = tr(right);
   const room = right ? WIDTH - right.length - 1 : WIDTH;
   const shown = name.length > room ? name.slice(0, room) : name;
   return `${shown}${right.padStart(WIDTH - shown.length)}`;
