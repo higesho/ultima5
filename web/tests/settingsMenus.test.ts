@@ -16,7 +16,8 @@ describe('the settings, at the title and in play', () => {
     const { g } = newGame();
     const title = names(settingLines(g, true).map((l) => l.label));
     const play = names(settingLines(g, false).map((l) => l.label));
-    expect(title.filter((l) => l !== 'Audio' && l !== 'Gameplay')).toEqual(play.filter((l) => !/saved game/.test(l)));
+    // (The Japanese edition's Language is the title's alone: changing it starts the page again.)
+    expect(title.filter((l) => l !== 'Audio' && l !== 'Gameplay' && l !== 'Language')).toEqual(play.filter((l) => !/saved game/.test(l)));
     expect(title.slice(-3, -1)).toEqual(['Audio', 'Gameplay']);
   });
 
