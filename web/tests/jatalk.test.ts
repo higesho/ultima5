@@ -4,7 +4,7 @@
  * (JA_TALK_OUT, a file, where it is set). English left in a townsman's words is listed: their keywords' marks
  * ("(SPIR)"), the words they listen for and names apart.
  */
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import type { Game } from '../src/game/game.ts';
 import { K, Pad } from '../src/game/io.ts';
@@ -38,7 +38,7 @@ const talk = async (seat: Seat, words: string[], met: boolean): Promise<string> 
   const { g, p } = newGame(seat.map * 100 + seat.npc);
   journeyOnward(g);
   for (const w of words) g.words.learn(g, w);
-  Object.assign(g.options, { input: 'controller', dialog: 'log', rules: 'classic' });
+  Object.assign(g.options, { input: 'controller', dialog: process.env.JA_DIALOG === 'play' ? 'play' : 'log', rules: 'classic' });
   Object.assign(g.s, { mapId: seat.map, gold: 9999, townAir: 0xff, karma: 99 });
   g.s.npcs[seat.npc].fa = seat.talk;
   if (met) g.s.npcMet[(seat.map - 1) * 4 + (seat.npc >> 3)] |= 1 << (seat.npc & 7);
@@ -89,7 +89,10 @@ it('says every conversation in Japanese, to its end', async () => {
   const ended: string[] = [];
   for (const seat of all)
     for (const met of [false, true]) {
+      const progress = process.env.JA_TALK_PROGRESS;
+      if (progress) appendFileSync(progress, `${seat.t.name} ${seat.t.key} map ${seat.map} npc ${seat.npc}${met ? ' met' : ''} ... `);
       const log = await talk(seat, learnable, met);
+      if (progress) appendFileSync(progress, `${log.length}\n`);
       out.push(`==== ${seat.t.name} (map ${seat.map} npc ${seat.npc} ${seat.t.key}${met ? ', met' : ''})\n${log}`);
       if (/\[ended:/.test(log)) ended.push(`${seat.t.name}${met ? ' (met)' : ''}: ${/\[ended: (.*)\]/.exec(log)?.[1]}`);
       // English words in their speech: not a mark "(XXXX)", nor a word typed (":word"), nor a name.

@@ -139,6 +139,8 @@ const NO_END = new Set(Array.from('「『（【〔〈《“‘([{'));
 export function canBreak(prev: string, next: string): boolean {
   if (!prev || !next) return true;
   if (next === ' ' || prev === ' ') return true;
+  // A keyword's mark stays with its word: "占い師(FORT)", never "占い師" at a line's end and "(FORT)" on the next.
+  if (next === '(') return false;
   const p = prev.charCodeAt(0);
   const n = next.charCodeAt(0);
   if (!isWide(p) && !isWide(n)) return false;
