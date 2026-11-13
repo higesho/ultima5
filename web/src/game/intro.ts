@@ -8,6 +8,8 @@
  * little scenes ("Return to the View").
  */
 
+import { datText } from '../i18n/gameText.ts';
+import { canBreak, hasWide, isWide, ja } from '../i18n/i18n.ts';
 import { loadResource } from '../data/images.ts';
 import { Colour } from '../ui/colours.ts';
 import { blinker, waitMark } from './waitMark.ts';
@@ -513,10 +515,63 @@ export class Intro {
   // --- Proportional text -----------------------------------------------------------
 
   /**
+   * proseText for Japanese (the fork's): the same spans and lines, Misaki's 8 by 8 letters set 8 apart, the line
+   * broken between letters as Japanese is (i18n.ts canBreak, with its kinsoku), and not justified.
+   */
+  private proseWide(text: string): void {
+    const p = this.prose;
+    const fx = this.fx;
+    const adv = (ch: string): number => {
+      const c = ch.charCodeAt(0);
+      if (isWide(c)) return 8;
+      if (c <= 0x20) return p.space;
+      if (c === 0x7b) return 0xf;
+      if (c === 0x5f) return 0;
+      return this.widths[c - 0x21] + 1;
+    };
+    fx.page(1);
+    let span = p.y > p.top && p.y < p.bottom ? 1 : 0;
+    const newLine = (): void => {
+      p.y += 9;
+      span = p.y > p.top && p.y < p.bottom ? 1 : 0;
+      p.x = p.left[span];
+    };
+    for (const [k, para] of text.split('\n').entries()) {
+      if (k > 0) newLine();
+      let i = 0;
+      while (i < para.length) {
+        // The letters to the next place a line may break.
+        let j = i + 1;
+        while (j < para.length && !canBreak(para[j - 1], para[j])) j++;
+        const piece = para.slice(i, j);
+        const w = [...piece].reduce((n, ch) => n + adv(ch), 0);
+        if (p.x + w > p.right[span] && p.x > p.left[span]) {
+          newLine();
+          if (piece.trim() === '') {
+            i = j;
+            continue;
+          }
+        }
+        for (const ch of piece) {
+          const c = ch.charCodeAt(0);
+          if (p.y < 0xc0) {
+            if (isWide(c)) fx.wide?.(c, p.x, p.y);
+            else if (c > 0x20 && c !== 0x7b && c !== 0x5f) fx.bitImage(this.font, c - 0x20, p.x, p.y);
+          }
+          p.x += adv(ch);
+        }
+        i = j;
+      }
+    }
+    fx.page(0);
+  }
+
+  /**
    * FONT_0000: justified text in PROPORT.PCS's glyphs on page 1, between
    * the spans; `{` is a wide space, `_` a hyphen at a break.
    */
   proseText(text: string): void {
+    if (hasWide(text)) return this.proseWide(text);
     const p = this.prose;
     const fx = this.fx;
     const w = (c: number): number => this.widths[c - 0x21];
@@ -588,6 +643,9 @@ export class Intro {
 
   /** A NUL-terminated string from a file. */
   private fileText(name: string, offset: number, max = 2000): string {
+    // Its Japanese, where it is shown (the fork's: gameText.ts).
+    const translated = datText(name, offset);
+    if (translated !== undefined) return translated;
     const f = this.g.data.files.get(name);
     let s = '';
     for (let i = offset; i < f.length && i < offset + max && f[i] !== 0; i++) s += String.fromCharCode(f[i]);
@@ -670,7 +728,8 @@ export class Intro {
     const version = this.g.hooks.update?.offer()?.version;
     const keys = this.menuKeys();
     const items = [...keys].map((k): [number, number | string] => {
-      if (GAME_LINES[k]) return GAME_LINES[k];
+      // The game's lines at the game's columns; in Japanese (the fork's) centred as the port's are, their lengths not 1988's.
+      if (GAME_LINES[k]) return ja() ? [(0x28 - this.g.t(GAME_LINES[k][1]).length - 2) >> 1, GAME_LINES[k][1]] : GAME_LINES[k];
       const label =
         k === 'L'
           ? FROM_STEAM

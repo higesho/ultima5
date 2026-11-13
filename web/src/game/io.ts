@@ -330,6 +330,8 @@ export interface Effects {
   viewSlide?(x1: number, y1: number, x2: number, y2: number, k: number | null): void;
   /** Bit picture `i` in white. */
   bitImage(res: Uint8Array, i: number, x: number, y: number): void;
+  /** A Japanese letter (the fork's) in white at pixel (x, y), 8 by 8: the story's prose as 1988 sets it. */
+  wide?(code: number, x: number, y: number): void;
   /**
    * A story page's prose (its texts, in order) set the Standard look's way (ui/storyText.ts): in a real font, in the
    * page's clearest space, its first step (a paragraph) on the page drawn on - the rest by proseNext. False where the look sets it as 1988 did - the EGA look,

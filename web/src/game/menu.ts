@@ -8,6 +8,7 @@
  * letter picker that lets a controller type names and words.
  */
 
+import { hasWide, LANG_NAMES, LANGS, lang, setLang, tr, wrapLines } from '../i18n/i18n.ts';
 import { INPUT_PACE_LABELS, INPUT_PACE_NAMES } from '../ui/holds.ts';
 import { cue } from './cues.ts';
 import { saysWord, talkingHorseBeside } from './cmds.ts';
@@ -117,6 +118,9 @@ export interface Item {
   note?: string;
 }
 
+/** A menu's line in the language shown: its label and note (the fork's). */
+const trItem = (item: Item): Item => (item.note === undefined ? { ...item, label: tr(item.label) } : { ...item, label: tr(item.label), note: tr(item.note) });
+
 /** The map's square, left and right, in EGA pixels: inside the screen's frame. */
 const VIEW_EDGE: [number, number] = [8, 0xb7];
 
@@ -154,6 +158,7 @@ export async function restoreView(g: Game): Promise<void> {
 
 /** Text at (x, y) in the menus' window, a character at a time, never wrapping or scrolling it. */
 function put(g: Game, x: number, y: number, text: string): void {
+  text = tr(text);
   const t = g.text;
   const was = t.advance;
   t.advance = false;
@@ -173,6 +178,7 @@ let cols = WIDTH;
  * ultima3 port's placed windows). The text window is left selected.
  */
 export function box(g: Game, title: string, width: number, rows: number): void {
+  title = tr(title);
   const d = g.draw;
   const t = g.text;
   cols = Math.max(6, Math.min(WIDTH, width));
@@ -213,6 +219,7 @@ export function box(g: Game, title: string, width: number, rows: number): void {
  * Appearance screen, asks for it.)
  */
 export function framedBox(g: Game, title: string, width: number, rows: number): void {
+  title = tr(title);
   const t = g.text;
   cols = Math.max(6, Math.min(WIDTH, width));
   const head = title ? 2 : 0;
@@ -703,6 +710,9 @@ function scrollMarks(g: Game, rows: number, above: boolean, below: boolean): voi
 export const LEFT_FOR_HOOK = -3;
 
 export async function choose(g: Game, title: string, items: Item[], start = 0, boxed = false, talkRows?: TalkRows): Promise<number> {
+  // In the language shown (the fork's): the lines as they will be seen, before they are measured.
+  title = tr(title);
+  items = items.map(trItem);
   // What was said for the Dialog setting's box shown first: the box drawn before the menu, not over it - and a list
   // low in the view, as a townsman's talk has it, the merchant's words in sight above it (merchantSpeech.ts).
   if (g.beforeRead) await g.beforeRead();
@@ -873,6 +883,8 @@ export async function choose(g: Game, title: string, items: Item[], start = 0, b
  * a row (and wrap), left and right across it; A chooses, B goes back. The index chosen, or -1.
  */
 export async function chooseTwoColumns(g: Game, title: string, items: Item[], start = 0): Promise<number> {
+  title = tr(title);
+  items = items.map(trItem);
   if (g.beforeRead) await g.beforeRead();
   const t = g.text;
   const was = t.current;
@@ -961,6 +973,7 @@ export const PAGE_WIDTH = WIDTH;
  * closes; left goes back; B or Escape closes. The title counts the pages; the keys go unsaid, as a menu's do.
  */
 export async function showPages(g: Game, pages: Page[]): Promise<void> {
+  pages = pages.map((p) => ({ ...p, title: tr(p.title), lines: p.lines.map(tr) }));
   const t = g.text;
   const was = t.current;
   let i = 0;
@@ -996,6 +1009,8 @@ export async function showPages(g: Game, pages: Page[]): Promise<void> {
  * says at its foot how to move through it.
  */
 export async function showText(g: Game, title: string, lines: string[], colours: (number | undefined)[] = []): Promise<number> {
+  title = tr(title);
+  lines = lines.map(tr);
   const t = g.text;
   const was = t.current;
   const long = lines.length > HEIGHT - 3;
@@ -1041,6 +1056,9 @@ export async function showText(g: Game, title: string, lines: string[], colours:
 
 /** Text broken into lines of the menus' width. */
 export function wrap(text: string, width = WIDTH): string[] {
+  // Japanese (the fork's) breaks between its letters, as i18n.ts wraps it.
+  text = tr(text);
+  if (hasWide(text)) return wrapLines(text, width);
   const out: string[] = [];
   for (const para of text.split('\n')) {
     let line = '';
@@ -1898,6 +1916,19 @@ export function settingLines(g: Game, title = false): Setting[] {
   const pc = o.tileSet !== 'standard';
   return [
     { label: 'Back', note: '' },
+    // The language (the fork's): at the title only, since changing it starts the page again.
+    ...(title
+      ? [
+          {
+            label: `Language: ${LANG_NAMES[lang()]}`,
+            note: 'Japanese or English. Changing it starts the game again from the title.',
+            act: () => {
+              setLang(LANGS[(LANGS.indexOf(lang()) + 1) % LANGS.length]);
+              location.reload();
+            },
+          },
+        ]
+      : []),
     {
       // The look: the port's own screen (Modern), or the 1988 PC release's EGA tiles and screen (the setting's values are
       // still 'standard' and 'original').

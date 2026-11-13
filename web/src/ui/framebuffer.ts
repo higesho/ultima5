@@ -29,6 +29,8 @@ import { EXTRA_RGB } from './colours.ts';
 import { DISSOLVE_MS, DISSOLVE_ORDER, HOLD_MS, RuneReveal, STAGGER_MS, type RuneCell } from './runeReveal.ts';
 import { SIGN_WALL, WALLS, signLayout } from './signLayout.ts';
 import type { Run } from './storyText.ts';
+import { isWide } from '../i18n/i18n.ts';
+import { jfonts, small8 } from '../i18n/jfont.ts';
 
 export const WIDTH = 320;
 export const HEIGHT = 200;
@@ -957,6 +959,7 @@ export class Framebuffer {
    * a rune letter is drawn as read - it was read when it was first shown, or would have been.
    */
   glyph(font: number, code: number, column: number, row: number, fg: number, bg: number, again = false): void {
+    if (isWide(code)) return this.wideGlyph(code, column, row, fg, bg);
     const rows = this.fonts[font].rows;
     const x = column * GLYPH_SIZE;
     const y = row * GLYPH_SIZE;
@@ -1036,6 +1039,32 @@ export class Framebuffer {
       const cell = this.runes.addAt(column, row, c7, fg, bg, this.hx, signed.start, wall);
       if (signed.k > 0) this.readRune(cell, signed.k);
     } else if (reads) this.runes.add(column, row, c7, fg, bg, this.hx, performance.now());
+    else if (this.runes.active) this.runes.forget(column, row, column, row, this.hx);
+    this.dirty = true;
+  }
+
+  /**
+   * A Japanese letter at text cell (column, row) (the fork's): Misaki's 8 by 8 on the EGA page, as the PC (1988) look
+   * shows it; in the Modern look, Shinonome's 16 by 16 over it on the colour page, at twice its grain.
+   */
+  private wideGlyph(code: number, column: number, row: number, fg: number, bg: number): void {
+    const x = column * GLYPH_SIZE;
+    const y = row * GLYPH_SIZE;
+    const p = this.px;
+    const bits8 = small8(code);
+    for (let r = 0; r < GLYPH_SIZE; r++) {
+      if (y + r >= HEIGHT) break;
+      for (let c = 0; c < GLYPH_SIZE; c++) {
+        if (x + c >= WIDTH) continue;
+        const col = bits8[r] & (0x80 >> c) ? fg : bg;
+        p[(y + r) * WIDTH + x + c] = col & 15;
+        this.block(this.hx, x + c, y + r, colourRGBA(col));
+      }
+    }
+    this.letters[this.page].delete(cellKey(x, y));
+    const modern = !!this.letterOf || !!this.art.glyph;
+    const mask = modern ? jfonts.gothic?.mask(code) : null;
+    if (mask && x + GLYPH_SIZE <= WIDTH && y + GLYPH_SIZE <= HEIGHT) this.ink(this.hx, column, row, fg, bg, mask);
     else if (this.runes.active) this.runes.forget(column, row, column, row, this.hx);
     this.dirty = true;
   }

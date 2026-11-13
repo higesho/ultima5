@@ -30,6 +30,8 @@ import { freedKey } from './items.ts';
 import * as modern from './modernKarma.ts';
 import * as speech from './speech.ts';
 import { addAmmo, isAmmo, spendOne } from './ammo.ts';
+import { tlkScript } from '../i18n/gameText.ts';
+import { canBreak, isWide } from '../i18n/i18n.ts';
 
 const inc = (v: number, n: number, max: number): number => (v + n < max ? v + n : max);
 const dec = (v: number, n: number): number => (v > n ? v - n : 0);
@@ -69,7 +71,9 @@ export class TalkState {
   /** D_bcf8: what the player typed. */
   typed = '';
   /** D_b21e, D_bcde: the NPC's script and the reading position in it. */
-  script = new Uint8Array(0x400);
+  script: Uint8Array | Uint16Array = new Uint8Array(0x400);
+  /** The script as the player's file has it (the fork's): English, where script is its Japanese - whom it is for. */
+  source: Uint8Array = new Uint8Array(0x400);
   at = 0;
   /**
    * The words of this townsman's own conversation (words.ts scriptSpeech), for the Say list's labels: their own
@@ -161,12 +165,13 @@ export function fixScript(script: Uint8Array, name: string): number {
 /** The NPC's script, from the settlement's TLK file (TALK_127e), with the port's corrections (SCRIPT_FIXES). */
 export function loadScript(g: Game, npcTalk: number): void {
   const t = g.talk;
-  const file = g.data.files.get(['TOWNE.TLK', 'DWELLING.TLK', 'CASTLE.TLK', 'KEEP.TLK'][(g.s.mapId - 1) >> 3]);
+  const fileName = ['TOWNE.TLK', 'DWELLING.TLK', 'CASTLE.TLK', 'KEEP.TLK'][(g.s.mapId - 1) >> 3];
+  const file = g.data.files.get(fileName);
   const count = file[0] | (file[1] << 8);
   let at = 2;
   for (let i = 1; (file[at] | (file[at + 1] << 8)) !== npcTalk && i <= count; i++) at += 4;
   const offset = file[at + 2] | (file[at + 3] << 8);
-  t.script.fill(0);
+  t.script = new Uint8Array(0x400);
   t.script.set(file.subarray(offset, offset + 0x400));
   let end = file.length;
   for (let i = 0; i < count; i++) {
@@ -179,6 +184,12 @@ export function loadScript(g: Game, npcTalk: number): void {
   const grown = fixScript(t.script, name);
   // Their own words as they now say them (a word put right is theirs; Weblock's stray "hass" is not).
   t.own = new Set(scriptSpeech(t.script.subarray(0, Math.min(end - offset + grown, 0x400)), g.data.table(0x24ea, 0x80)));
+  // In Japanese (the fork's), the townsman says their script's translation: the same strings, keywords, questions
+  // and actions, its letters Japanese (gameText.ts tlkScript; the corrections above already made in it). Their own
+  // words, for the Say list, are the English script's still: the words the player can say.
+  t.source = t.script as Uint8Array;
+  const translated = tlkScript(fileName, (at - 2) >> 2);
+  if (translated) t.script = translated;
 }
 
 // --- Printing words ---------------------------------------------------------------------
@@ -193,8 +204,9 @@ function flushWord({ g, t }: Talk): void {
     // (Kept with each glyph too: one written off the screen, for the Dialog setting's box, is drawn later: speech.ts.)
     if (runes) g.text.ink = RUNE_INK[runeKind(runes)];
     for (const b of t.word) {
-      g.text.font = (b & 0x80) === 0 ? 1 : 0;
-      const c = b & 0x7f;
+      // A Japanese letter (the fork's) is its own code, in the letters' font.
+      g.text.font = isWide(b) || (b & 0x80) !== 0 ? 0 : 1;
+      const c = isWide(b) ? b : b & 0x7f;
       if (g.text.win.x !== 0 || c !== 0x20) {
         if (t.lastX < 0xf || c !== 0x0a) {
           if (c !== 0x0a) t.lastX = g.text.win.x;
@@ -243,6 +255,16 @@ async function addSpoken(k: Talk, b: number): Promise<void> {
     flushWord(k);
     speech.begin(g);
   }
+  // Japanese (the fork's): a line may break between its letters, as at a space (i18n.ts canBreak, with its kinsoku) -
+  // the word so far ends there, written on this row or the next, and the letter begins the next word.
+  const last = t.word.length !== 0 ? t.word[t.word.length - 1] : -1;
+  if (last >= 0 && b !== 0x8a && b !== 0xa0 && (isWide(b) || isWide(last)) && canBreak(letterOf(last), letterOf(b))) {
+    const w = g.text.win;
+    const over = w.x !== 0 && w.x + t.word.length > w.right - w.left + 1;
+    await speech.room(g, over ? 1 : 0);
+    if (over) g.printChar('\n');
+    flushWord(k);
+  }
   // A word ended: the row it is to be written on - this one, or the next where it will not fit - room in the box made
   // for it first (speech.ts).
   if (b === 0x8a || (b === 0xa0 && t.word.length !== 0)) {
@@ -252,6 +274,9 @@ async function addSpoken(k: Talk, b: number): Promise<void> {
   addLetter(k, b);
   k.spoken = b;
 }
+
+/** A letter of the word as text: a Japanese one itself, else its seven bits. */
+const letterOf = (b: number): string => String.fromCharCode(isWide(b) ? b : b & 0x7f);
 
 const printCr = (k: Talk): Promise<number> => processChar(k, 0x80 | 0x0d);
 
@@ -580,7 +605,7 @@ interface Way {
  * the townsman knows the Avatar, else on; 0xfe goes to its question at its karma, else on. The arguments of 0x85
  * (three) and 0x86 (one) are passed over.
  */
-function openingsOf(script: Uint8Array, reply: string): Opening[] {
+function openingsOf(script: ArrayLike<number>, reply: string): Opening[] {
   const out: Opening[] = [];
   const seen = new Set<string>();
   const labelAt = (label: number): number => {
@@ -1035,6 +1060,14 @@ async function processChar(k: Talk, b: number): Promise<number> {
   const { g, t } = k;
   if (t.pending !== 0) return actionArg(k, b);
   t.argCount = 0;
+  // A Japanese letter (the fork's): spoken as a letter is, never a rune.
+  if (isWide(b)) {
+    t.lastChar = b;
+    if (t.afterWord !== 0) await addSpoken(k, 0xa0);
+    await addSpoken(k, b);
+    t.afterWord = 0;
+    return 0;
+  }
   if (b === 0xa2 && t.lastChar === 0xa2) return 0;
   switch (b) {
     case 0x81:
@@ -1251,9 +1284,9 @@ async function conversation(g: Game, n: number): Promise<void> {
     g.recordWindow = null;
     g.words.learn(g, heard ?? '');
     heardPlaces(g, heard ?? ''); // the places named, for the map (the port's)
-    heardOfThings(g, heard ?? '', scriptName(g.talk.script)); // the journal's mysteries
+    heardOfThings(g, heard ?? '', scriptName(g.talk.source)); // the journal's mysteries
     heardLines(g, g.talk.labels, g.talk.spokeAt); // the place's clues heard (the journal's Places)
-    noteConversation(g, heard, scriptName(g.talk.script));
+    noteConversation(g, heard, scriptName(g.talk.source));
   }
   await pickpocket(g);
 }

@@ -6,6 +6,8 @@
  * keyboard, in the DOS game's key codes.
  */
 
+import { small8 } from '../i18n/jfont.ts';
+import { hasWide } from '../i18n/i18n.ts';
 import { ViewGlide } from './viewGlide.ts';
 import { Holds } from './holds.ts';
 import { signInk, tinted } from './colours.ts';
@@ -892,11 +894,14 @@ export class Screen implements Platform {
         const v = bitPicture(res, i);
         if (v) fb.bitImage(v, x, y);
       },
+      wide: (code, x, y) => fb.bitImage({ width: 8, height: 8, stride: 1, bits: small8(code) }, x, y),
       prose: (texts) => {
         const story = this.story;
         this.proseSteps = [];
         this.proseAt = 0;
         if (!story) return false;
+        // Japanese (the fork's) is set as 1988 set its prose (intro.ts proseWide), in the letters' own font.
+        if (texts.some(hasWide)) return false;
         const lit = fb.litMap(fb.page);
         // A paragraph a step (setSteps); where the steps will not go, the page's prose in one block (setProse).
         const steps = setSteps(texts, lit, story.measure);
@@ -912,6 +917,7 @@ export class Screen implements Platform {
       choice: (question, left, right, lit) => {
         const story = this.story;
         if (!story) return false;
+        if ([question, left, right].some(hasWide)) return false;
         const was = fb.page;
         fb.page = 0;
         // The band under the bowls, as the picture leaves it: black.

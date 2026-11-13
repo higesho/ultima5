@@ -1,0 +1,18 @@
+The Japanese fonts (the Japanese edition's), made from the fonts' BDF files:
+
+ja-misaki8.bin       Misaki Gothic 2nd (8 x 8): a text cell in the PC (1988) look, and the story's prose there.
+                     Copyright (C) 2002-2021 Num Kadoma. https://littlelimit.net/misaki.htm
+                     These fonts are free softwares. Unlimited permission is granted to use, copy, and distribute
+                     it, with or without modification, either commercially and noncommercially.
+                     THESE FONTS ARE PROVIDED "AS IS" WITHOUT WARRANTY.
+
+ja-shinonome16.bin   Shinonome Gothic 16 (16 x 16): a text cell in the Modern look.
+ja-shinonome16m.bin  Shinonome Mincho 16 (16 x 16): the Modern look's story pages.
+                     The Shinonome fonts (shinonome-0.9.11), The Electronic Font Open Laboratory:
+                     public domain. http://openlab.ring.gr.jp/efont/shinonome/
+
+Format: "U5JF", the count (u16), the side (u8), the bytes to a glyph (u8), the letters' Unicode codes (u16 each,
+in order), then the glyphs, row by row from the top, the leftmost pixel the high bit. Read by src/i18n/jfont.ts.
+
+日本語のフォント（日本語版）。美咲ゴシック第2（門真なむ氏、自由に利用・複製・再配布できるフリーソフトウエア）と、
+東雲フォント（The Electronic Font Open Laboratory、パブリックドメイン）の BDF から作ったもの。

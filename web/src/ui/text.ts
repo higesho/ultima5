@@ -27,6 +27,8 @@
  * so nothing the window printed meanwhile is lost. One cover at a time.
  */
 
+import { hasWide, isWide, tr, wrapLines } from '../i18n/i18n.ts';
+
 /** The border's blue, a cap's colour (frame.ts capArrow: Colour.blue). */
 const CAP_BLUE = 1;
 
@@ -206,7 +208,7 @@ export class Text {
 
   printChar(ch: number): void {
     const w = this.win;
-    if (ch > 0x7f) {
+    if (ch > 0x7f && !isWide(ch)) {
       switch (ch) {
         case CLEAR_WINDOW:
           w.x = w.y = 0;
@@ -623,6 +625,9 @@ export class Text {
   /** ULTIMA_1850_PrintString: word-wrapped to the window, centred while centring is on. */
   print(s: string): void {
     if (s.length === 0) return;
+    // The port's own lines in the language shown (i18n.ts tr); the game's come translated already.
+    s = tr(s);
+    if (hasWide(s)) return this.printWide(s);
     const at = (i: number): number => (i < s.length ? s.charCodeAt(i) : 0);
     const isBreak = (c: number): boolean => c === 0x0a || c === 0x0d || c === 0;
     const w = this.win;
@@ -672,6 +677,26 @@ export class Text {
       if (skipLead) while (buf[start] === 0x20) start++;
       for (; start <= c; start++) this.printChar(buf[start]);
     } while (!done);
+  }
+
+  /**
+   * print for Japanese text (the fork's): the same window, cursor and centring, broken into lines between letters as
+   * Japanese is (i18n.ts wrapLines, with its kinsoku) rather than only at spaces.
+   */
+  private printWide(s: string): void {
+    const w = this.win;
+    const cells = w.right - w.left + 1;
+    s.split('\n').forEach((part, k) => {
+      if (k > 0) this.printChar(0x0a);
+      if (part === '') return;
+      const lines = wrapLines(part, cells, Math.max(1, cells - w.x));
+      lines.forEach((line, j) => {
+        // A line that filled its row has wrapped already (printChar): no second break.
+        if (j > 0 && w.x !== 0) this.softBreak();
+        if (w.center) this.moveTo(Math.max(0, Math.trunc((cells - w.x - line.length) / 2)), w.y);
+        for (let i = 0; i < line.length; i++) this.printChar(line.charCodeAt(i));
+      });
+    });
   }
 
   /** ULTIMA_1a3e_PrintNumber: at least `minLength` characters, padded in front with `filler`. */

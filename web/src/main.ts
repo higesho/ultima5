@@ -5,6 +5,7 @@
  * installer), then start the game.
  */
 
+import { loadJFonts } from './i18n/jfont.ts';
 import { egaTileArt } from './ui/egaTiles.ts';
 import { CARVE_STYLES, type CarveStyle } from './ui/carve.ts';
 import { drawCombatMarks } from './game/combat.ts';
@@ -240,6 +241,8 @@ async function start(): Promise<void> {
   // The lettering comes in a moment, from the port's own files; the notice is drawn again in it (where the boot screen
   // did not come).
   const font = loadStandardFont();
+  // The Japanese letters' shapes (the fork's), had before the game draws a letter.
+  const jfontsLoaded = loadJFonts();
   const lettering = font.then(async (f) => {
     noticeFont = f;
     if (f && !bootShown && !(window as unknown as { u5?: unknown }).u5) canvasNotice(canvas, 'Loading...');
@@ -249,6 +252,7 @@ async function start(): Promise<void> {
   // Where the saves are kept, before anything reads one.
   chooseStore();
   const files = await gameFiles();
+  await jfontsLoaded;
   await lettering;
   const data = new GameData(files);
   const tiles = lzwDecompress(files.get('TILES.16'));

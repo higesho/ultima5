@@ -10,6 +10,7 @@
  * interrogation), ENDMSG.DAT and END.DAT (the end), KARMA.DAT.
  */
 
+import { datText } from '../i18n/gameText.ts';
 import * as modern from './modernKarma.ts';
 import { loadResource } from '../data/images.ts';
 import { setActor } from './actors.ts';
@@ -28,6 +29,9 @@ import { cue } from './cues.ts';
 
 /** A NUL-terminated string from a file. */
 export function fileText(g: Game, name: string, offset: number, max = 2000): string {
+  // Its Japanese, where it is shown (the fork's: gameText.ts).
+  const translated = datText(name, offset);
+  if (translated !== undefined) return translated;
   const f = g.data.files.get(name);
   let s = '';
   for (let i = offset; i < f.length && i < offset + max && f[i] !== 0; i++) s += String.fromCharCode(f[i]);

@@ -7,6 +7,7 @@
  * the gem's map of the surroundings.
  */
 
+import { datText, signRuns } from '../i18n/gameText.ts';
 import { actorTileAt, freeActor, setActor } from './actors.ts';
 import { drawVitals, updateFrame } from './frame.ts';
 import { Game } from './game.ts';
@@ -31,13 +32,15 @@ function fileString(data: Uint8Array, at: number): string {
 /** LOOKOBJ_0000: a map tile's description. */
 function describeTile(g: Game, tile: number): void {
   const look = g.data.files.get('LOOK2.DAT');
-  g.print(fileString(look, u16(look, tile * 2)));
+  const at = u16(look, tile * 2);
+  g.print(datText('LOOK2.DAT', at) ?? fileString(look, at));
 }
 
 /** LOOKOBJ_06a4: an actor's description. */
 function describeActor(g: Game, tile: number): void {
   const look = g.data.files.get('LOOK2.DAT');
-  g.print(fileString(look, u16(look, tile * 2 + 0x200)));
+  const at = u16(look, tile * 2 + 0x200);
+  g.print(datText('LOOK2.DAT', at) ?? fileString(look, at));
   if (g.text.win.x !== 0) g.printChar('\n');
 }
 
@@ -223,7 +226,7 @@ async function lookAtTile(g: Game, tile: number, x: number, y: number): Promise<
 }
 
 /** LOOKOBJ_06f8: print a sign's text from the scratch copy of SIGNS.DAT (-1: the Eight Laws). */
-export async function printSign(g: Game, buf: Uint8Array, at: number): Promise<void> {
+export async function printSign(g: Game, buf: Uint8Array, at: number, fileAt = -1): Promise<void> {
   const t = g.text;
   if (at === -1) {
     t.font = 1;
@@ -232,9 +235,22 @@ export async function printSign(g: Game, buf: Uint8Array, at: number): Promise<v
     t.font = 0;
     return;
   }
+  // Its plain letters in Japanese (the fork's: gameText.ts signRuns), by where the sign is in the file: each run
+  // of them in its place, centred in the cells the English had; the runes and the frame as they are.
+  const text = at + 4;
+  const runs = fileAt >= 0 ? signRuns(fileAt) : undefined;
   for (at += 4; buf[at] === 0x0a; at += 6);
   const runes = g.data.table(0x3810, 9);
   do {
+    const run = runs?.find(([a]) => a === at - text);
+    if (run) {
+      const [a, b, ja] = run;
+      const left = Math.max(0, Math.trunc((b - a - ja.length) / 2));
+      t.font = 0;
+      g.print(' '.repeat(left) + ja + ' '.repeat(Math.max(0, b - a - ja.length - left)));
+      at = text + b - 1;
+      continue;
+    }
     const c = buf[at];
     t.font = c & 0x80 ? 0 : 1;
     if (c === 0x26 || c === 0x27) {
@@ -297,7 +313,7 @@ export async function readSign(g: Game, z: number, x: number, y: number): Promis
   let at = 0;
   for (;;) {
     if (buf[at + 1] === z && buf[at + 2] === (x & 0xff) && buf[at + 3] === (y & 0xff)) {
-      await printSign(g, buf, at);
+      await printSign(g, buf, at, start + at);
       return;
     }
     at += 4;

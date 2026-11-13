@@ -11,6 +11,7 @@
 import { DataOvl } from '../data/dataOvl.ts';
 import { GameFiles } from '../data/files.ts';
 import { readLocations, type Location } from '../data/maps.ts';
+import { ovlText } from '../i18n/gameText.ts';
 
 export class GameData {
   readonly ovl: DataOvl;
@@ -22,18 +23,28 @@ export class GameData {
     this.locations = readLocations(this.ovl);
   }
 
-  /** The string at a data-segment address (u5d `_TEXT(addr, "...")`). */
+  /** The string at a data-segment address (u5d `_TEXT(addr, "...")`), in the language shown (gameText.ts ovlText). */
   t(address: number): string {
     let s = this.strings.get(address);
     if (s === undefined) {
-      s = this.ovl.string(address);
+      s = ovlText(address) ?? this.ovl.string(address);
       this.strings.set(address, s);
     }
     return s;
   }
 
-  /** Strings through a table of pointers. */
+  /** Strings through a table of pointers, in the language shown. */
   table(address: number, count: number): string[] {
+    return this.ovl.words(address, count).map((p) => (p === 0 ? '' : this.t(p)));
+  }
+
+  /** The string at a data-segment address as the player's file has it: English, for what is matched against it. */
+  raw(address: number): string {
+    return this.ovl.string(address);
+  }
+
+  /** Strings through a table of pointers, as the file has them (raw). */
+  rawTable(address: number, count: number): string[] {
     return this.ovl.strings(address, count);
   }
 

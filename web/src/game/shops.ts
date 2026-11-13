@@ -10,6 +10,8 @@
  * bytes of 0x80 up for dictionary words.
  */
 
+import { datText } from '../i18n/gameText.ts';
+import { isWide } from '../i18n/i18n.ts';
 import * as modern from './modernKarma.ts';
 import { withFullPanel } from './layout.ts';
 import { freeActor } from './actors.ts';
@@ -67,6 +69,11 @@ function sayShop(v: Visit, text: number[] | string): void {
   let out = '';
   for (let i = 0; i < bytes.length && bytes[i] !== 0; i++) {
     const b = bytes[i];
+    // A Japanese letter (the fork's) is itself, not a word of the dictionary.
+    if (isWide(b)) {
+      out += String.fromCharCode(b);
+      continue;
+    }
     if (b >= 0x80) {
       out += ' ' + (words[b - 0x80] ?? '');
       if (bytes[i + 1] && bytes[i + 1] < 0x80) out += ' ';
@@ -103,6 +110,9 @@ function sayShop(v: Visit, text: number[] | string): void {
 
 /** SHOPPES_017a: a message from SHOPPE.DAT at a file offset. */
 function sayFile(v: Visit, offset: number): void {
+  // Its Japanese, where it is shown (the fork's: gameText.ts), the substitutions in it as in the English.
+  const translated = datText('SHOPPE.DAT', offset);
+  if (translated !== undefined) return sayShop(v, translated);
   const file = v.g.data.files.get('SHOPPE.DAT');
   const bytes: number[] = [];
   for (let i = offset; i < file.length && file[i] !== 0 && i < offset + 1500; i++) bytes.push(file[i]);

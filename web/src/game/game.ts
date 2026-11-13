@@ -7,6 +7,7 @@
  * field.
  */
 
+import { isWide } from '../i18n/i18n.ts';
 import type { UpdateHook } from '../ui/updates.ts';
 import type { ChromePlace } from './chromeTone.ts';
 import { TileCycles } from '../ui/animate.ts';
@@ -722,10 +723,11 @@ export class Game {
       this.heldText += String.fromCharCode(code);
       return;
     }
-    if ((code === 0x0a || (code >= 0x20 && code < 0x7f)) && this.routed(String.fromCharCode(code))) return;
-    if (code === 0x0a || (code >= 0x20 && code < 0x7f)) this.remember(String.fromCharCode(code));
-    if (this.recording !== null && this.recorded() && (code === 0x0a || (code >= 0x20 && code < 0x7f)))
-      this.recording += String.fromCharCode(code);
+    // What is read: the letters and new lines - a Japanese letter (the fork's) among them.
+    const readable = code === 0x0a || (code >= 0x20 && code < 0x7f) || isWide(code);
+    if (readable && this.routed(String.fromCharCode(code))) return;
+    if (readable) this.remember(String.fromCharCode(code));
+    if (this.recording !== null && this.recorded() && readable) this.recording += String.fromCharCode(code);
     this.p.text.printChar(code);
   }
   /**
