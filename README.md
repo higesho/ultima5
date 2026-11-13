@@ -1,3 +1,19 @@
+# ウルティマV SP 日本語版（Japanese edition）
+
+[synthwave-pixel/ultima5](https://github.com/synthwave-pixel/ultima5) の新しいエンジンで、ウルティマV（Ultima V: Warriors of Destiny）を日本語で遊べるようにした非公式版です。このブランチ（`ja`）がその日本語版です。
+
+- 原作の文章（会話、メッセージ、店、看板、物語、ジプシーの問いかけ、エンディング）と、エンジンのメニュー・設定・日誌・ヒント・ヘルプを日本語にしています。
+- 文字は、現代風の見た目では東雲フォント（16×16、物語のページは明朝）、1988 年の見た目では美咲フォント（8×8）で表示します。
+- ゲームの本体は含みません。持っている DOS 版（GOG の Ultima 4+5+6 など）のファイルで遊びます。
+- 言語はタイトルの「設定」で日本語・英語を切り替えられます。
+- 会話で打つ言葉（キーワード）は英語です。訳の中の「星(STAR)」のような印が、その言葉を表します。
+
+フォント: 美咲フォント（Copyright (C) 2002-2021 Num Kadoma、自由に利用・複製・再配布できるフリーソフトウエア）、東雲フォント（The Electronic Font Open Laboratory、パブリックドメイン）。詳しくは `web/public/fonts/SOURCE-ja.txt`。
+
+誤訳や表示の不具合は、このリポジトリの Issues へ。英語版のエンジンそのものについては、元のリポジトリへ。
+
+---
+
 # Ultima V: Warriors of Destiny
 
 ![Ultima V: Warriors of Destiny, 1988 to 2026 - the Avatar standing over his fallen friend, three Shadowlords looming over them, from the box's painting](docs/banner.png)
