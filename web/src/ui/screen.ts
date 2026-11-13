@@ -6,8 +6,11 @@
  * keyboard, in the DOS game's key codes.
  */
 
-import { small8 } from '../i18n/jfont.ts';
-import { hasWide } from '../i18n/i18n.ts';
+import { jfonts, small8 } from '../i18n/jfont.ts';
+import { hasWide, isWide } from '../i18n/i18n.ts';
+
+/** Shinonome's 16 pixels to a story run's size: whole pixels, at least one (the fork's). */
+const jaScale = (size: number): number => Math.max(1, Math.round(size / 16));
 import { ViewGlide } from './viewGlide.ts';
 import { Holds } from './holds.ts';
 import { signInk, tinted } from './colours.ts';
@@ -550,10 +553,55 @@ export class Screen implements Platform {
       }
       ctx.font = `${run.size}px "${runFamily(run.face)}"`;
       ctx.fillStyle = `#${run.colour.toString(16).padStart(6, '0')}`;
-      ctx.fillText(run.text, run.x, run.y);
+      if (hasWide(run.text)) this.wideRun(ctx, run);
+      else ctx.fillText(run.text, run.x, run.y);
     }
     ctx.globalAlpha = 1;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /**
+   * A run of the story's words with Japanese in it (the fork's): its Japanese letters Shinonome Mincho's, whole pixels
+   * at the run's size (jaScale), its others in the run's face, one after another from where it starts.
+   */
+  private wideRun(ctx: CanvasRenderingContext2D, run: Run): void {
+    const s = jaScale(run.size);
+    const smooth = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = false;
+    let x = run.x;
+    for (const ch of run.text) {
+      const c = ch.charCodeAt(0);
+      if (isWide(c)) {
+        const glyph = this.jaGlyph(c, run.colour);
+        // Shinonome's baseline two pixels above its foot.
+        if (glyph) ctx.drawImage(glyph, x, run.y - 14 * s, 16 * s, 16 * s);
+        x += 16 * s;
+      } else {
+        ctx.fillText(ch, x, run.y);
+        x += ctx.measureText(ch).width;
+      }
+    }
+    ctx.imageSmoothingEnabled = smooth;
+  }
+
+  /** Shinonome Mincho's letters, each in a colour, as they have been drawn (wideRun). */
+  private readonly jaGlyphs = new Map<string, OffscreenCanvas>();
+  private jaGlyph(code: number, colour: number): OffscreenCanvas | null {
+    const key = `${code}:${colour}`;
+    let c = this.jaGlyphs.get(key);
+    if (!c) {
+      const mask = jfonts.mincho?.mask(code);
+      const g = mask && typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(16, 16) : null;
+      const ctx = g?.getContext('2d');
+      if (!mask || !g || !ctx) return null;
+      const img = ctx.createImageData(16, 16);
+      for (let i = 0; i < 256; i++)
+        if (mask[i]) img.data.set([(colour >> 16) & 255, (colour >> 8) & 255, colour & 255, 255], i * 4);
+      ctx.putImageData(img, 0, 0);
+      c = g;
+      this.jaGlyphs.set(key, c);
+    }
+    return c;
   }
 
   /** The harpsichord's keyboard over the view (harpsichord.ts), or null. */
@@ -815,7 +863,11 @@ export class Screen implements Platform {
     if (!ctx) return null;
     const measure: Measure = (text, size, face) => {
       ctx.font = `${size}px "${runFamily(face)}"`;
-      return ctx.measureText(text).width;
+      if (!hasWide(text)) return ctx.measureText(text).width;
+      // Japanese (the fork's: wideRun): its letters 16 pixels at the run's scale, the others as the face sets them.
+      let w = 0;
+      for (const ch of text) w += isWide(ch.charCodeAt(0)) ? 16 * jaScale(size) : ctx.measureText(ch).width;
+      return w;
     };
     return { ctx, measure };
   }
@@ -900,8 +952,6 @@ export class Screen implements Platform {
         this.proseSteps = [];
         this.proseAt = 0;
         if (!story) return false;
-        // Japanese (the fork's) is set as 1988 set its prose (intro.ts proseWide), in the letters' own font.
-        if (texts.some(hasWide)) return false;
         const lit = fb.litMap(fb.page);
         // A paragraph a step (setSteps); where the steps will not go, the page's prose in one block (setProse).
         const steps = setSteps(texts, lit, story.measure);
@@ -917,7 +967,6 @@ export class Screen implements Platform {
       choice: (question, left, right, lit) => {
         const story = this.story;
         if (!story) return false;
-        if ([question, left, right].some(hasWide)) return false;
         const was = fb.page;
         fb.page = 0;
         // The band under the bowls, as the picture leaves it: black.

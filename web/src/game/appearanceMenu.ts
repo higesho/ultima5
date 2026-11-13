@@ -7,6 +7,7 @@
  * large and walking, for its detail.
  */
 
+import { tr } from '../i18n/i18n.ts';
 import { readBritannia, tileAt } from '../data/maps.ts';
 import { addressedAsLady, type Appearance, FIGURES, HAIR, HUES, randomAppearance, SKIN } from './appearance.ts';
 import type { Game } from './game.ts';
@@ -110,13 +111,14 @@ export const VALUE_WIDTH = WIDTH - FIELD - 2;
 
 /** One row's text, `WIDTH` long, of the screen laid out as `rows`; `copy`, what the copying row says. */
 function rowText(look: Appearance, r: number, copy: string, rows: ReturnType<typeof rowsFor>): string {
-  if (r === rows.surprise) return centred('Surprise me', WIDTH);
+  // Each part in the language shown (the fork's), before it is measured.
+  if (r === rows.surprise) return centred(tr('Surprise me'), WIDTH);
   // Its arrows the pose's: the one to copy, chosen with left and right.
-  if (r === rows.copy) return '\x1b' + centred(copy, WIDTH - 2) + '\x1a';
-  if (r === rows.done) return centred('Done', WIDTH);
+  if (r === rows.copy) return '\x1b' + centred(tr(copy), WIDTH - 2) + '\x1a';
+  if (r === rows.done) return centred(tr('Done'), WIDTH);
   const row = rows.values[r];
   // The arrows are the font's own (0x1b and 0x1a), as the frame's marks use them.
-  return row.label.padEnd(FIELD) + '\x1b' + centred(row.name(look[row.field]), VALUE_WIDTH) + '\x1a';
+  return tr(row.label).padEnd(FIELD) + '\x1b' + centred(tr(row.name(look[row.field])), VALUE_WIDTH) + '\x1a';
 }
 
 function centred(s: string, width: number): string {

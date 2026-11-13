@@ -9,7 +9,7 @@
  */
 
 import { datText } from '../i18n/gameText.ts';
-import { canBreak, hasWide, isWide, ja } from '../i18n/i18n.ts';
+import { canBreak, hasWide, isWide, ja, tr } from '../i18n/i18n.ts';
 import { loadResource } from '../data/images.ts';
 import { Colour } from '../ui/colours.ts';
 import { blinker, waitMark } from './waitMark.ts';
@@ -63,6 +63,7 @@ export const scenePx = (x: number, y: number): [number, number] => [8 + x * 16, 
  * menu, The Mirror under the Appearance screen's room (appearanceMenu.ts).
  */
 export function titleBanner(g: Game, text: string): void {
+  text = tr(text);
   const left = -(Math.trunc(text.length / 2) - 0x12);
   const right = left + text.length + 2;
   const d = g.draw;
@@ -248,6 +249,7 @@ export async function askAddress(g: Game): Promise<number | null> {
   const WIDTH = 21;
   box(g, '', WIDTH, 4);
   const put = (col: number, row: number, text: string, inverse = false): void => {
+    text = tr(text);
     const advance = t.advance;
     t.advance = false;
     t.inverse = inverse;
@@ -258,7 +260,7 @@ export async function askAddress(g: Game): Promise<number | null> {
     t.inverse = false;
     t.advance = advance;
   };
-  const centre = (row: number, text: string): void => put((WIDTH - text.length) >> 1, row, text);
+  const centre = (row: number, text: string): void => put((WIDTH - tr(text).length) >> 1, row, text);
   centre(0, 'How art thou');
   centre(1, 'addressed?');
   let chosen = -1;
@@ -266,7 +268,7 @@ export async function askAddress(g: Game): Promise<number | null> {
   const show = (): void => {
     put(0, 3, '\x1b ');
     put(2, 3, ADDRESSED[0][0], chosen === 0);
-    const sir = ADDRESSED[1][0];
+    const sir = tr(ADDRESSED[1][0]);
     put(WIDTH - 2 - sir.length, 3, sir, chosen === 1);
     put(WIDTH - 2, 3, ' \x1a');
   };

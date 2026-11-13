@@ -8,6 +8,7 @@
  * letter picker that lets a controller type names and words.
  */
 
+import { keywordLabel } from '../i18n/gameText.ts';
 import { hasWide, LANG_NAMES, LANGS, lang, setLang, tr, wrapLines } from '../i18n/i18n.ts';
 import { INPUT_PACE_LABELS, INPUT_PACE_NAMES } from '../ui/holds.ts';
 import { cue } from './cues.ts';
@@ -391,7 +392,10 @@ export async function sayMenu(g: Game, keywords: Keyword[], own?: ReadonlySet<st
     if (first && first.dest !== dest) return;
     offered.add(dest);
     // (A name spelt out with full stops, "H.M.S.", is labelled as it is written.)
-    const label = word.includes('.') ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    const english = word.includes('.') ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    // In Japanese (the fork's), the translation's word for it, its keyword after it as the translation marks it.
+    const jaWord = keywordLabel(g.talk.labels + stub.toUpperCase());
+    const label = jaWord ? `${jaWord}(${stub.toUpperCase()})` : english;
     add(label, sayable(stub, word), i, false, heard.has(dest));
   });
   // What has not been asked comes first, and the two the game always answers lead it: a player who knows

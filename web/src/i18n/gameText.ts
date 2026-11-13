@@ -11,6 +11,7 @@ import { ja } from './i18n.ts';
 import ovl from './ja/ovl.json';
 import tlk from './ja/tlk.json';
 import dat from './ja/dat.json';
+import kw from './ja/kw.json';
 
 const OVL = ovl as Record<string, string>;
 const TLK = tlk as Record<string, string[]>;
@@ -51,4 +52,14 @@ export function signRuns(offset: number): [number, number, string][] | undefined
   if (!ja()) return undefined;
   const v = DAT['SIGNS.DAT']?.[String(offset)];
   return Array.isArray(v) ? (v as [number, number, string][]) : undefined;
+}
+
+const KW = kw as Record<string, string>;
+
+/**
+ * A townsman's keyword in Japanese, for the Say list (menu.ts sayMenu): the word the translation marks with it ("星"
+ * for STAR, as "星(STAR)" says it), by the conversation's key and the keyword ("0:1:STAR"); undefined where none.
+ */
+export function keywordLabel(key: string): string | undefined {
+  return ja() ? KW[key] : undefined;
 }

@@ -71,7 +71,7 @@ function compile(): { re: RegExp; to: string; parts: number[] }[] {
   for (const [en, to] of Object.entries(UI)) {
     if (!/\{\d+\}/.test(en)) continue;
     // At least a word of its own, not only its parts: "{0} {1}" would take every line.
-    if (!/[A-Za-z]{2}/.test(en.replace(/\{\d+\}/g, ''))) continue;
+    if ((en.replace(/\{\d+\}/g, '').match(/[A-Za-z]/g) ?? []).length < 4) continue;
     const parts: number[] = [];
     const source = en
       .split(/(\{\d+\})/)

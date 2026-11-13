@@ -14,6 +14,8 @@
  * (four to an EGA pixel). The screen draws them (screen.ts).
  */
 
+import { canBreak, hasWide } from '../i18n/i18n.ts';
+
 /** Colour page pixels to an EGA pixel. */
 const K = 4;
 const W = 320;
@@ -48,7 +50,15 @@ export type Measure = (text: string, size: number, face: RunFace) => number;
 interface Para {
   words: string[][];
   indent: boolean;
+  /** Japanese (the fork's): its words the pieces between the places a line may break, set with no space between. */
+  cjk?: boolean;
 }
+
+/**
+ * The sizes Japanese is set at (the fork's): Shinonome's 16 pixels at twice and once its grain, so its letters stay
+ * whole pixels.
+ */
+const JA_SIZES = [32, 16];
 
 export const WHITE = 0xffffff;
 export const GREY = 0x8c8c8c;
@@ -69,10 +79,27 @@ function curl(w: string): string {
 }
 
 const words = (s: string): string[][] =>
-  s
+  hasWide(s)
+    ? jaWords(s)
+    : s
     .split(' ')
     .filter(Boolean)
     .map((w) => curl(w).split('_'));
+
+/** Japanese text as the pieces between the places a line may break (i18n.ts canBreak), a space before one kept on it. */
+function jaWords(s: string): string[][] {
+  const out: string[][] = [];
+  let cur = '';
+  for (let i = 0; i < s.length; i++) {
+    if (cur && canBreak(s[i - 1], s[i])) {
+      out.push([cur]);
+      cur = '';
+    }
+    cur += s[i];
+  }
+  if (cur) out.push([cur]);
+  return out;
+}
 
 /**
  * The game's prose as paragraphs: a line break ends one, '{' at its start indents it, '_' marks where a word may be
@@ -82,12 +109,17 @@ export function paragraphs(text: string): Para[] {
   return text
     .split('\n')
     .filter((l) => l.trim())
-    .map((l) => ({ indent: l.startsWith('{'), words: words(l.replace(/^\{/, '')) }));
+    .map((l) => ({ indent: l.startsWith('{'), words: words(l.replace(/^\{/, '')), cjk: hasWide(l) }));
 }
 
 interface Line {
   pieces: string[];
+  /** What goes between its pieces: a space, or nothing in Japanese. */
+  sep?: string | undefined;
 }
+
+/** A line's words as they are set. */
+const lineText = (ln: Line): string => ln.pieces.join(ln.sep ?? ' ');
 
 /** A paragraph broken into lines of `width(i)` for line i, a word broken at a mark (with a hyphen) only when it must. */
 function breakLines(
@@ -99,20 +131,23 @@ function breakLines(
   face: RunFace = 'body',
 ): Line[] {
   const m = (s: string): number => measure(s, size, face);
-  const space = m(' ');
+  // (Japanese however the paragraph was cut: its sentences and steps are paragraphs of their own.)
+  const cjk = !!para.cjk || para.words.some((w) => hasWide(w.join('')));
+  const space = cjk ? 0 : m(' ');
   const lines: Line[] = [];
   let cur: string[] = [];
   let used = 0;
   const avail = (): number => width(lines.length) - (lines.length === 0 ? indent : 0);
   const push = (): void => {
-    lines.push({ pieces: cur });
+    lines.push(cjk ? { pieces: cur, sep: '' } : { pieces: cur });
     cur = [];
     used = 0;
   };
   for (const w of para.words) {
     let parts = w;
     for (;;) {
-      const word = parts.join('');
+      // (A Japanese piece's space before it is dropped at a line's start.)
+      const word = cjk && !cur.length ? parts.join('').trimStart() : parts.join('');
       const need = (cur.length ? space : 0) + m(word);
       if (used + need <= avail()) {
         cur.push(word);
@@ -254,7 +289,8 @@ export function setProse(texts: string[], lit: Uint8Array, measure: Measure): Ru
   if (!paras.length) return [];
   let best: Setting | null = null;
   for (const rect of clearSpaces(lit)) {
-    for (let size = LARGEST; size >= SMALLEST; size--) {
+    const sizes = paras.some((p) => p.cjk) ? JA_SIZES : Array.from({ length: LARGEST - SMALLEST + 1 }, (_, i) => LARGEST - i);
+    for (const size of sizes) {
       const s = setAt(measure, paras, size, rect[2] * K, true);
       if (s.count * size * LEADING <= rect[3] * K) {
         if (!best || size > best.size || (size === best.size && rect[2] * rect[3] > best.rect[2] * best.rect[3])) best = { ...s, rect };
@@ -282,7 +318,7 @@ export function setProse(texts: string[], lit: Uint8Array, measure: Measure): Ru
     }
     p.lines.forEach((ln, i) => {
       const off = (p.cap && i < CAP_LINES ? p.cap.width : 0) + (i === 0 ? p.indent : 0);
-      runs.push({ text: ln.pieces.join(' '), x: x0 + off, y: top + (p.first + i) * lh + size, size, face: 'body', colour: WHITE });
+      runs.push({ text: lineText(ln), x: x0 + off, y: top + (p.first + i) * lh + size, size, face: 'body', colour: WHITE });
     });
   }
   return runs;
@@ -339,16 +375,17 @@ const answer = (t: string): string => t.replace(/[\s?;,.]+$/, '').replace(/^./, 
  * size, the largest at which each fits its band.
  */
 export function setChoice(question: string, left: string, right: string, lit: number, measure: Measure): Run[] {
-  const answers = [left, right].map((t) => ({ indent: false, words: words(answer(t)) }));
-  const q = { indent: false, words: words(trailing(question)) };
-  for (let size = CHOICE_LARGEST; ; size--) {
+  const answers = [left, right].map((t) => ({ indent: false, words: words(answer(t)), cjk: hasWide(t) }));
+  const q = { indent: false, words: words(trailing(question)), cjk: hasWide(question) };
+  const cjk = q.cjk || answers.some((a) => a.cjk);
+  for (let size = cjk ? JA_SIZES[0] : CHOICE_LARGEST; ; size = cjk ? JA_SIZES[1] : size - 1) {
     const lh = size * LEADING;
     const cols = answers.map((a, i) => balanced(measure, size, a, (CHOICE_COLUMNS[i][1] - CHOICE_COLUMNS[i][0]) * K, 'mono'));
     const ql = balanced(measure, size, q, (QUESTION_RIGHT - QUESTION_LEFT - 2 * PANEL_MARGIN) * K, 'mono');
     const answerLines = Math.max(...cols.map((c) => c.length));
     const fits =
       answerLines * lh <= (CHOICE_BOTTOM - CHOICE_TOP) * K && ql.length * lh <= (QUESTION_BOTTOM - QUESTION_TOP - 2 * PANEL_MARGIN) * K;
-    if (!fits && size > CHOICE_SMALLEST) continue;
+    if (!fits && (cjk ? size > JA_SIZES[1] : size > CHOICE_SMALLEST)) continue;
     const runs: Run[] = [];
     const centred = (text: string, c1: number, c2: number, y: number, colour: number): void => {
       const w = measure(text, size, 'mono');
@@ -357,7 +394,7 @@ export function setChoice(question: string, left: string, right: string, lit: nu
     // The question in the middle of its band, on its panel: as wide as its widest line, and its lines' height.
     const qHeight = ql.length * lh;
     const qTop = QUESTION_TOP * K + Math.max(0, ((QUESTION_BOTTOM - QUESTION_TOP) * K - qHeight) / 2);
-    const widest = Math.max(...ql.map((ln) => measure(ln.pieces.join(' '), size, 'mono')));
+    const widest = Math.max(...ql.map((ln) => measure(lineText(ln), size, 'mono')));
     const mid = ((QUESTION_LEFT + QUESTION_RIGHT) * K) / 2;
     const m = PANEL_MARGIN * K;
     runs.push({
@@ -369,12 +406,12 @@ export function setChoice(question: string, left: string, right: string, lit: nu
       colour: 0,
       panel: [mid - widest / 2 - m, qTop - m, mid + widest / 2 + m, qTop + qHeight + m],
     });
-    ql.forEach((ln, j) => centred(ln.pieces.join(' '), QUESTION_LEFT, QUESTION_RIGHT, qTop + j * lh + size, WHITE));
+    ql.forEach((ln, j) => centred(lineText(ln), QUESTION_LEFT, QUESTION_RIGHT, qTop + j * lh + size, WHITE));
     // Each answer under its bowl, at the top of its band.
     const top = CHOICE_TOP * K;
     cols.forEach((lines, i) =>
       lines.forEach((ln, j) =>
-        centred(ln.pieces.join(' '), CHOICE_COLUMNS[i][0], CHOICE_COLUMNS[i][1], top + j * lh + size, lit === i ? WHITE : GREY),
+        centred(lineText(ln), CHOICE_COLUMNS[i][0], CHOICE_COLUMNS[i][1], top + j * lh + size, lit === i ? WHITE : GREY),
       ),
     );
     return runs;
@@ -387,6 +424,8 @@ export function setChoice(question: string, left: string, right: string, lit: nu
  */
 export const STEP_FACE: RunFace = 'mono';
 export const STEP_SIZE = 24;
+/** The size the steps are set at now: STEP_SIZE, or Japanese's (the fork's: JA_SIZES), as the page's prose is. */
+let stepSize = STEP_SIZE;
 /** The game's lettering has straight marks alone: the curled ones put back. */
 const straight = (t: string): string => t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
 /** Clear space kept above and below the steps (colour page pixels). */
@@ -400,7 +439,7 @@ function sentences(para: Para): Para[] {
   let cur: string[][] = [];
   for (const w of para.words) {
     cur.push(w);
-    if (/[.!?][”’"')]*$/.test(w.join(''))) {
+    if (/[.!?。！？][”’"')」』]*$/.test(w.join(''))) {
       out.push({ indent: false, words: cur });
       cur = [];
     }
@@ -462,15 +501,15 @@ interface Step {
 /** A step's lines set: each line's words and how far it is indented (a paragraph's first after the step's first). */
 interface StepLaid {
   cap: Setting['laid'][number]['cap'];
-  lines: { pieces: string[]; indent: number }[];
+  lines: { pieces: string[]; sep?: string | undefined; indent: number }[];
 }
 
 /** A step's lines at STEP_SIZE in a column `width` wide, its first letter dropped where it carries the cap and is long enough to. */
 function stepLines(measure: Measure, step: Step, width: number): StepLaid {
-  const laid = setAt(measure, step.paras, STEP_SIZE, width, step.cap, STEP_FACE, 'capital').laid;
+  const laid = setAt(measure, step.paras, stepSize, width, step.cap, STEP_FACE, 'capital').laid;
   return {
     cap: laid[0]?.cap ?? null,
-    lines: laid.flatMap((p) => p.lines.map((ln, i) => ({ pieces: ln.pieces, indent: i === 0 ? p.indent : 0 }))),
+    lines: laid.flatMap((p) => p.lines.map((ln, i) => ({ pieces: ln.pieces, sep: ln.sep, indent: i === 0 ? p.indent : 0 }))),
   };
 }
 
@@ -480,7 +519,7 @@ function stepLines(measure: Measure, step: Step, width: number): StepLaid {
  * will not fit.
  */
 function splitPara(measure: Measure, para: Para, cap: boolean, width: number, height: number): Step[] | null {
-  const lh = STEP_SIZE * LEADING;
+  const lh = stepSize * LEADING;
   const tall = (st: Step): number => stepLines(measure, st, width).lines.length * lh;
   if (tall({ paras: [para], cap }) <= height) return [{ paras: [para], cap }];
   const parts = sentences(para);
@@ -538,7 +577,8 @@ function splitPara(measure: Measure, para: Para, cap: boolean, width: number, he
 export function setSteps(texts: string[], lit: Uint8Array, measure: Measure): Run[][] | null {
   const paras = texts.flatMap(paragraphs);
   if (!paras.length) return [];
-  const lh = STEP_SIZE * LEADING;
+  stepSize = paras.some((p) => p.cjk) ? JA_SIZES[0] : STEP_SIZE;
+  const lh = stepSize * LEADING;
   let best: { rect: Rect; steps: Step[] } | null = null;
   for (const rect of clearSpaces(lit)) {
     const width = rect[2] * K;
@@ -575,7 +615,7 @@ export function setSteps(texts: string[], lit: Uint8Array, measure: Measure): Ru
     const top = n === 1 ? top0 + (height - p.lines.length * lh) / 2 : first + (walk * k) / (n - 1);
     const runs: Run[] = [];
     if (p.cap) {
-      const size = STEP_SIZE;
+      const size = stepSize;
       if (p.cap.quote) runs.push({ text: straight(p.cap.quote), x: x0, y: top + size, size, face: STEP_FACE, colour: COPPER, step: true });
       // The letter in the lettering, copper, standing in the paragraph's first two lines: its foot on the second's.
       runs.push({
@@ -591,10 +631,10 @@ export function setSteps(texts: string[], lit: Uint8Array, measure: Measure): Ru
     p.lines.forEach((ln, i) => {
       const off = (p.cap && i < CAP_LINES ? p.cap.width : 0) + ln.indent;
       runs.push({
-        text: straight(ln.pieces.join(' ')),
+        text: straight(lineText(ln)),
         x: x0 + off,
-        y: top + i * lh + STEP_SIZE,
-        size: STEP_SIZE,
+        y: top + i * lh + stepSize,
+        size: stepSize,
         face: STEP_FACE,
         colour: WHITE,
         step: true,

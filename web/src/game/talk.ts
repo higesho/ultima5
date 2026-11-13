@@ -313,7 +313,11 @@ function seek(k: Talk, n: number): void {
 /** TALK_0788: say the string from here; true if the conversation ends. */
 async function speak(k: Talk): Promise<boolean> {
   const t = k.t;
-  t.spokeAt.add(t.at);
+  // Where the line is in the English script (the fork's: the same place, in Japanese the translation's): the journal
+  // reads its clues by it, and the words it says are learnt from it, as the player hears them said.
+  const at = sourceAt(t, t.at);
+  t.spokeAt.add(at);
+  if (t.script !== t.source) learnSaid(k, at);
   while (t.script[t.at] !== 0) {
     if ((await processChar(k, t.script[t.at++])) !== 0) return true;
   }
@@ -323,6 +327,35 @@ async function speak(k: Talk): Promise<boolean> {
 async function speakNth(k: Talk, n: number): Promise<boolean> {
   seek(k, n);
   return speak(k);
+}
+
+/**
+ * The place in the English script (TalkState.source) of place `at` in the script spoken: the same, where they are one;
+ * in Japanese (the fork's), the start of the same string - the strings and the actions that part them (0 and 0x90)
+ * being the same and in the same order in both.
+ */
+function sourceAt(t: TalkState, at: number): number {
+  if (t.script === t.source) return at;
+  let n = 0;
+  for (let i = 0; i < at && i < t.script.length; i++) if (t.script[i] === 0 || t.script[i] === 0x90) n++;
+  let i = 0;
+  for (; n > 0 && i < t.source.length; i++) if (t.source[i] === 0 || t.source[i] === 0x90) n--;
+  return i;
+}
+
+/** The words of the English string from `at` learnt (words.ts learn): what a Japanese line says, as English has it. */
+function learnSaid(k: Talk, at: number): void {
+  const t = k.t;
+  const words = k.g.data.table(0x24ea, 0x80);
+  let text = '';
+  for (let i = at; i < t.source.length && t.source[i] !== 0; i++) {
+    const b = t.source[i];
+    if (b === 0xfe || b === 0x85 || b === 0x86 || b === 0x8c) i++;
+    else if (b > 0 && b < 0x81) text += ` ${words[b - 1] ?? ''} `;
+    else if (b >= 0xa0) text += String.fromCharCode(b & 0x7f);
+    else text += ' ';
+  }
+  k.g.words.learn(k.g, text);
 }
 
 /** TALK_07be: the second of two alternatives. */
