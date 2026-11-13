@@ -42,6 +42,10 @@ describe('the desktop app’s updates', () => {
     expect(kind('win32', { PORTABLE_EXECUTABLE_DIR: 'D:\\\\Games' })).toBe('notice');
   });
 
+  it('are told of on Windows where no installer put the copy (the Japanese edition’s zip, unpacked anywhere)', () => {
+    expect(updateKind({ packaged: true, platform: 'win32', env: {}, argv: [], installed: false })).toBe('notice');
+  });
+
   it('on a Mac, install themselves in a release build run from Applications - told of where run from elsewhere', () => {
     expect(kind('darwin', {}, true, [], true, true)).toBe('auto');
     // From the disk image, or Downloads (macOS runs it from a read-only copy there): the app cannot be replaced.
@@ -136,7 +140,7 @@ describe('the desktop app’s updates', () => {
     require.cache[path] = { id: path, filename: path, loaded: true, exports: { autoUpdater } } as never;
     try {
       const electron = { app: { isPackaged: true, getVersion: () => '1.1.10', getPath: () => dir }, net: {} };
-      await checkForUpdates({ electron, quiet: false, file: join(dir, 'updates.json') });
+      await checkForUpdates({ electron, quiet: false, file: join(dir, 'updates.json'), installed: true });
       expect(autoUpdater.allowPrerelease).toBe(false);
     } finally {
       if (real) require.cache[path] = real;
@@ -197,14 +201,14 @@ describe('the desktop app’s updates', () => {
     require.cache[path] = { id: path, filename: path, loaded: true, exports: { autoUpdater } } as never;
     try {
       const electron = { app: { isPackaged: true, getVersion: () => '1.1.10', getPath: () => dir, quit: () => {} }, net: {} };
-      await checkForUpdates({ electron, quiet: false, file: join(dir, 'updates.json'), steam: true });
+      await checkForUpdates({ electron, quiet: false, file: join(dir, 'updates.json'), steam: true, installed: true });
       downloaded({ version: '1.1.12' });
       expect(autoUpdater.autoInstallOnAppQuit).toBe(true);
       expect(currentOffer()).toEqual({ kind: 'restart', onQuit: true, version: '1.1.12', current: '1.1.10', told: false });
       expect(applyUpdate({ electron, steam: true })).toBe(false);
       expect(installs).toBe(0);
       // Outside Steam the same offer restarts into the build.
-      await checkForUpdates({ electron, quiet: false, file: join(dir, 'updates.json') });
+      await checkForUpdates({ electron, quiet: false, file: join(dir, 'updates.json'), installed: true });
       downloaded({ version: '1.1.12' });
       expect(currentOffer()?.onQuit).toBeUndefined();
       expect(applyUpdate({ electron })).toBe(true);
@@ -241,7 +245,7 @@ describe('the desktop app’s updates', () => {
     require.cache[path] = { id: path, filename: path, loaded: true, exports: { autoUpdater } } as never;
     try {
       const electron = { app: { isPackaged: true, getVersion: () => '1.1.10', getPath: () => dir }, net: {} };
-      await checkForUpdates({ electron, quiet: false, file: join(dir, 'updates.json') });
+      await checkForUpdates({ electron, quiet: false, file: join(dir, 'updates.json'), installed: true });
       expect(handlers.has('update-downloaded')).toBe(true);
       expect([...handlers.keys()]).not.toContain('appimage-filename-updated');
     } finally {

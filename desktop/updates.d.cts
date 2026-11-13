@@ -5,6 +5,7 @@ export function updateKind(where: {
   argv: string[];
   selfUpdate?: boolean;
   inApplications?: boolean;
+  installed?: boolean;
 }): 'auto' | 'notice' | 'flatpak' | 'none';
 export function isNewer(latest: string, current: string): boolean;
 export function shouldNotice(latest: string, current: string, told: string | null): boolean;
@@ -32,6 +33,8 @@ export function checkForUpdates(o: {
   flatpak?: FlatpakPortal;
   steam?: boolean;
   selfUpdate?: boolean;
+  /** Whether the Windows installer installed this copy (the fork's): else told of a newer release, not updated. */
+  installed?: boolean;
 }): Promise<void>;
 export function applyUpdate(o: { electron: unknown; steam?: boolean }): boolean;
 export function toldOfUpdate(o: { file: string }): void;

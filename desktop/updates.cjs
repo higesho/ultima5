@@ -23,7 +23,7 @@
 // and the Flatpak's installed update is started by the player, from Steam again. A failure to look (offline, GitHub
 // down) is only logged.
 const fs = require('node:fs');
-const { readFileSync, writeFileSync } = fs;
+const { readFileSync, readdirSync, writeFileSync } = fs;
 const flatpakUpdates = require('./flatpakUpdates.cjs');
 
 // The Japanese edition's releases (the fork's): it updates from its own, never to the English app's.
@@ -36,13 +36,25 @@ const LATEST_API = `https://api.github.com/repos/${OWNER}/${REPO}/releases/lates
  * How this copy is updated: 'auto', 'notice', 'flatpak' or 'none' (see above). `selfUpdate`: a Mac release build
  * signed for it; `inApplications`: a Mac app run from Applications (app.isInApplicationsFolder).
  */
-function updateKind({ packaged, platform, env, argv, selfUpdate = false, inApplications = false }) {
+function updateKind({ packaged, platform, env, argv, selfUpdate = false, inApplications = false, installed = true }) {
   if (!packaged || argv.includes('--no-update-check')) return 'none';
   if (env.FLATPAK_ID || env.container === 'flatpak') return 'flatpak';
-  if (platform === 'win32') return env.PORTABLE_EXECUTABLE_DIR ? 'notice' : 'auto';
+  // On Windows, a copy the installer did not put there (the Japanese edition's zip, unpacked anywhere) is told of a
+  // newer release, as the portable .exe is: electron-updater replaces only what the installer installed.
+  if (platform === 'win32') return env.PORTABLE_EXECUTABLE_DIR || !installed ? 'notice' : 'auto';
   if (platform === 'linux') return env.APPIMAGE ? 'auto' : 'notice';
   if (platform === 'darwin') return selfUpdate && inApplications ? 'auto' : 'notice';
   return 'notice';
+}
+
+/** Whether the Windows installer installed this copy: its uninstaller beside the app (the fork's: see updateKind). */
+function installedByInstaller() {
+  try {
+    const dir = require('node:path').dirname(process.execPath);
+    return readdirSync(dir).some((n) => /^Uninstall .*\.exe$/i.test(n));
+  } catch {
+    return false;
+  }
 }
 
 /** Whether this build was signed to replace itself (macSigning.cjs puts selfUpdate in the packaged package.json). */
@@ -145,7 +157,15 @@ async function latestRelease(net) {
  * isSteamLaunch): no restart is offered or made. `selfUpdate`, whether a Mac build was signed to replace itself (the
  * packaged package.json's, signedForUpdates; the tests give their own).
  */
-async function checkForUpdates({ electron, quiet, file, flatpak = flatpakUpdates, steam = false, selfUpdate = signedForUpdates() }) {
+async function checkForUpdates({
+  electron,
+  quiet,
+  file,
+  flatpak = flatpakUpdates,
+  steam = false,
+  selfUpdate = signedForUpdates(),
+  installed = installedByInstaller(),
+}) {
   const { app, net } = electron;
   const kind = updateKind({
     packaged: app.isPackaged,
@@ -154,6 +174,7 @@ async function checkForUpdates({ electron, quiet, file, flatpak = flatpakUpdates
     argv: process.argv,
     selfUpdate,
     inApplications: process.platform === 'darwin' && Boolean(app.isInApplicationsFolder?.()),
+    installed,
   });
   if (kind === 'none') return;
   if (kind === 'flatpak') return flatpakUpdate({ app, net, quiet, steam, file, flatpak });
