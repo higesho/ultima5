@@ -93,7 +93,7 @@ export class FakePlatform implements Platform {
     const print = this.text.printChar.bind(this.text);
     this.text.printChar = (ch: number) => {
       if (ch === 0x0a) this.log += '\n';
-      else if (ch >= 0x20 && ch < 0x7f) this.log += String.fromCharCode(ch);
+      else if ((ch >= 0x20 && ch < 0x7f) || ch >= 0x100) this.log += String.fromCharCode(ch); // (a Japanese letter too: the fork's)
       print(ch);
     };
   }

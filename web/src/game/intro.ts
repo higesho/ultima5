@@ -46,6 +46,11 @@ export interface Prose {
  * Standard look to set each answer under its bowl; null if it is not one.
  */
 export function splitQuestion(text: string): { question: string; a: string; b: string } | null {
+  // Japanese (the fork's): "...あなたは A) ...か、それとも B) ...か？" - each answer without the "か" that asks it.
+  if (hasWide(text)) {
+    const j = text.match(/^(.*?)\s*A\)\s*(.*?)[、,]?\s*(?:それとも\s*)?B\)\s*(.*)$/s);
+    return j ? { question: j[1], a: j[2].replace(/か?[、,]?\s*$/, ''), b: j[3].replace(/か?[？?]?\s*$/, '') } : null;
+  }
   const m = text.match(/^(.*?)\s+A\)\s+(.*?);?\s+or\s+B\)\s+(.*)$/is);
   return m ? { question: m[1], a: m[2], b: m[3] } : null;
 }
@@ -746,7 +751,8 @@ export class Intro {
                   : version
                     ? `Update (${version})`
                     : 'Update';
-      return [(0x28 - label.length - 2) >> 1, label];
+      // (Measured as shown: in Japanese, the fork's, its translation.)
+      return [(0x28 - tr(label).length - 2) >> 1, label];
     });
     // The box holds eight lines: more, and they scroll with the bar, an arrow at the box's edge where there are more
     // above or below.
