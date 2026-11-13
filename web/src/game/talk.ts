@@ -190,10 +190,11 @@ export function loadScript(g: Game, npcTalk: number): void {
   // Their own words as they now say them (a word put right is theirs; Weblock's stray "hass" is not).
   t.own = new Set(scriptSpeech(t.script.subarray(0, Math.min(end - offset + grown, 0x400)), g.data.table(0x24ea, 0x80)));
   // In Japanese (the fork's), the townsman says their script's translation: the same strings, keywords, questions
-  // and actions, its letters Japanese (gameText.ts tlkScript; the corrections above already made in it). Their own
-  // words, for the Say list, are the English script's still: the words the player can say.
+  // and actions, its letters Japanese, built from their English script in the player's file and the translation of
+  // its strings (gameText.ts tlkScript, which makes the corrections above as well). Their own words, for the Say
+  // list, are the English script's still: the words the player can say.
   t.source = t.script;
-  const translated = tlkScript(fileName, (at - 2) >> 2);
+  const translated = tlkScript(fileName, (at - 2) >> 2, file.subarray(offset, end));
   if (translated) t.script = translated;
 }
 
